@@ -137,5 +137,6 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         ),
       ),
     );
+
   }
 }
