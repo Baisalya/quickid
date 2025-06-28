@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:typed_data';
-
 import 'package:background_remover/background_remover.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
@@ -74,6 +73,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
     try {
       final removedBgBytes = await removeBackground(imageBytes: _originalImageBytes!);
       final decodedImage = img.decodeImage(removedBgBytes);
+
       if (decodedImage == null) {
         _showMessage("Failed to process image");
         setState(() => isProcessing = false);
@@ -187,101 +187,154 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
       ),
     );
   }
-
   @override
   Widget build(BuildContext context) {
     final imageToShow = _processedImageBytes ?? _originalImageBytes;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: Text("Passport Photo Maker")),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: Text("Passport Photo Maker"),
+        backgroundColor: Colors.black,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             GestureDetector(
               onTap: _showImageSourceDialog,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    height: 200,
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      color: Colors.grey[200],
-                    ),
-                    child: isProcessing
-                        ? Center(child: CircularProgressIndicator())
-                        : imageToShow != null
-                        ? Image.memory(imageToShow, fit: BoxFit.fitHeight)
-                        : Center(child: Text("Tap to upload photo")),
+              child: Container(
+                height: 250,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey[900],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.grey[700]!),
+                ),
+                child: isProcessing
+                    ? Center(child: CircularProgressIndicator(color: Colors.white))
+                    : imageToShow != null
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(imageToShow!, fit: BoxFit.contain),
+                )
+                    : Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.upload, color: Colors.white70, size: 40),
+                      SizedBox(height: 8),
+                      Text("Tap to upload photo", style: TextStyle(color: Colors.white60)),
+                    ],
                   ),
-                  if (_originalImageBytes != null && _processedImageBytes == null)
-                    Positioned(
-                      bottom: 8,
-                      child: ElevatedButton(
-                        onPressed: _removeBackground,
-                        child: Text("Remove Background"),
-                      ),
-                    ),
-                ],
+                ),
               ),
             ),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            SizedBox(height: 24),
+
+            /// Background Selector
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text("Background", style: TextStyle(color: Colors.white70, fontSize: 16)),
+            ),
+            SizedBox(height: 8),
+            Wrap(
+              spacing: 12,
               children: ["white", "blue", "grey"].map((color) {
                 return ChoiceChip(
-                  label: Text(color),
+                  label: Text(color, style: TextStyle(color: Colors.white)),
+                  selectedColor: Colors.blueGrey[700],
                   selected: selectedBackground == color,
                   onSelected: (_) {
                     setState(() => selectedBackground = color);
-                    if (_originalImageBytes != null) {
-                      _removeBackground(); // regenerate with new background color
-                    }
+                    if (_originalImageBytes != null) _removeBackground();
                   },
+                  backgroundColor: Colors.grey[800],
                 );
               }).toList(),
             ),
-            SizedBox(height: 20),
-            DropdownButton<String>(
-              value: selectedDress,
-              onChanged: (val) => setState(() => selectedDress = val!),
-              items: ["Gents", "Ladies", "Kids"]
-                  .map((e) => DropdownMenuItem(
-                value: e,
-                child: Text("Formal - $e"),
-              ))
-                  .toList(),
+            SizedBox(height: 24),
+
+            /// Dress Selector
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text("Dress Type", style: TextStyle(color: Colors.white70, fontSize: 16)),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 8),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[850],
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey[700]!),
+              ),
+              child: DropdownButton<String>(
+                dropdownColor: Colors.grey[900],
+                value: selectedDress,
+                underline: SizedBox(),
+                iconEnabledColor: Colors.white70,
+                style: TextStyle(color: Colors.white),
+                isExpanded: true,
+                onChanged: (val) => setState(() => selectedDress = val!),
+                items: ["Gents", "Ladies", "Kids"]
+                    .map((e) => DropdownMenuItem(
+                  value: e,
+                  child: Text("Formal - $e"),
+                ))
+                    .toList(),
+              ),
+            ),
+            SizedBox(height: 24),
+
+            /// Copies
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text("No. of Copies", style: TextStyle(color: Colors.white70, fontSize: 16)),
+            ),
+            SizedBox(height: 8),
             Wrap(
-              spacing: 10,
+              spacing: 12,
               children: [4, 6, 8, 16].map((num) {
                 return ChoiceChip(
-                  label: Text('$num'),
+                  label: Text('$num', style: TextStyle(color: Colors.white)),
+                  selectedColor: Colors.deepPurple,
                   selected: selectedCopy == num,
                   onSelected: (_) => setState(() => selectedCopy = num),
+                  backgroundColor: Colors.grey[800],
                 );
               }).toList(),
             ),
-            Spacer(),
-            ElevatedButton(
-              onPressed: _processedImageBytes != null
-                  ? () {
-                Navigator.pushNamed(
-                  context,
-                  '/export',
-                  arguments: {
-                    'imageBytes': _processedImageBytes,
-                    'background': selectedBackground,
-                    'dress': selectedDress,
-                    'copies': selectedCopy,
-                  },
-                );
-              }
-                  : null,
-              child: Text("Continue"),
+            SizedBox(height: 30),
+
+            /// Continue Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _processedImageBytes != null
+                    ? () {
+                  Navigator.pushNamed(
+                    context,
+                    '/export',
+                    arguments: {
+                      'imageBytes': _processedImageBytes,
+                      'background': selectedBackground,
+                      'dress': selectedDress,
+                      'copies': selectedCopy,
+                    },
+                  );
+                }
+                    : null,
+                icon: Icon(Icons.check_circle_outline),
+                label: Text("Continue"),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _processedImageBytes != null ? Colors.deepPurple : Colors.grey[800],
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  textStyle: TextStyle(fontSize: 16),
+                ),
+              ),
             ),
           ],
         ),
