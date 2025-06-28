@@ -16,12 +16,18 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
   String selectedBackground = "white";
   String selectedDress = "Gents";
   int selectedCopy = 4;
-  Rect? _faceBoundingBox;
 
   Uint8List? _originalImageBytes;
   Uint8List? _processedImageBytes;
   final ImagePicker _picker = ImagePicker();
   bool isProcessing = false;
+
+  // Dress position and scale
+  Offset _dressOffset = Offset(0, 0);
+  double _dressScale = 1.0;
+  Offset _initialFocalPoint = Offset.zero;
+  Offset _initialDressOffset = Offset.zero;
+  double _initialDressScale = 1.0;
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -35,10 +41,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
       final inputImage = InputImage.fromFile(imageFile);
 
       final faceDetector = FaceDetector(
-        options: FaceDetectorOptions(
-          enableContours: false,
-          enableLandmarks: false,
-        ),
+        options: FaceDetectorOptions(enableContours: false, enableLandmarks: false),
       );
 
       final faces = await faceDetector.processImage(inputImage);
@@ -55,9 +58,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         _processedImageBytes = null;
       });
 
-      // Automatically remove background after picking
       await _removeBackground();
-
     } catch (e) {
       _showMessage("Error: ${e.toString()}");
     }
@@ -73,7 +74,6 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
     try {
       final removedBgBytes = await removeBackground(imageBytes: _originalImageBytes!);
       final decodedImage = img.decodeImage(removedBgBytes);
-
       if (decodedImage == null) {
         _showMessage("Failed to process image");
         setState(() => isProcessing = false);
@@ -81,33 +81,26 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
       }
 
       final bgColor = _getSelectedColor();
-
-      final withWhiteBg = img.Image(
-        width: decodedImage.width,
-        height: decodedImage.height,
-      );
-      img.fill(withWhiteBg, color: bgColor);
+      final withBg = img.Image(width: decodedImage.width, height: decodedImage.height);
+      img.fill(withBg, color: bgColor);
 
       for (int y = 0; y < decodedImage.height; y++) {
         for (int x = 0; x < decodedImage.width; x++) {
           final pixel = decodedImage.getPixel(x, y);
-          if (pixel.a > 0) {
-            withWhiteBg.setPixel(x, y, pixel);
-          }
+          if (pixel.a > 0) withBg.setPixel(x, y, pixel);
         }
       }
 
       final topPadding = (decodedImage.height * 0.15).toInt();
       final paddedImage = img.Image(
-        width: withWhiteBg.width,
-        height: withWhiteBg.height + topPadding,
+        width: withBg.width,
+        height: withBg.height + topPadding,
       );
       img.fill(paddedImage, color: bgColor);
 
-      for (int y = 0; y < withWhiteBg.height; y++) {
-        for (int x = 0; x < withWhiteBg.width; x++) {
-          final pixel = withWhiteBg.getPixel(x, y);
-          paddedImage.setPixel(x, y + topPadding, pixel);
+      for (int y = 0; y < withBg.height; y++) {
+        for (int x = 0; x < withBg.width; x++) {
+          paddedImage.setPixel(x, y + topPadding, withBg.getPixel(x, y));
         }
       }
 
@@ -137,6 +130,8 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
 
       setState(() {
         _processedImageBytes = Uint8List.fromList(jpgBytes);
+        _dressOffset = Offset(0, 0); // Reset dress position
+        _dressScale = 1.0;
       });
     } catch (e) {
       _showMessage("Error: ${e.toString()}");
@@ -187,10 +182,10 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
     final imageToShow = _processedImageBytes ?? _originalImageBytes;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -219,7 +214,40 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                     : imageToShow != null
                     ? ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.memory(imageToShow!, fit: BoxFit.contain),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: Image.memory(imageToShow!, fit: BoxFit.contain),
+                      ),
+                      if (_processedImageBytes != null && selectedDress != "Original")
+                        Positioned(
+                          left: _dressOffset.dx,
+                          top: _dressOffset.dy,
+                          child: GestureDetector(
+                            onScaleStart: (details) {
+                              _initialFocalPoint = details.focalPoint;
+                              _initialDressOffset = _dressOffset;
+                              _initialDressScale = _dressScale;
+                            },
+                            onScaleUpdate: (details) {
+                              setState(() {
+                                _dressScale = (_initialDressScale * details.scale).clamp(0.5, 2.5);
+                                final delta = details.focalPoint - _initialFocalPoint;
+                                _dressOffset = _initialDressOffset + delta;
+                              });
+                            },
+                            child: Transform.scale(
+                              scale: _dressScale,
+                              child: Image.asset(
+                                _getDressAssetPath(selectedDress),
+                                width: 200,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 )
                     : Center(
                   child: Column(
@@ -233,9 +261,18 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                 ),
               ),
             ),
+            if (_processedImageBytes != null && selectedDress == "Gents")
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _dressOffset = Offset(0, 0);
+                    _dressScale = 1.0;
+                  });
+                },
+                child: Text("Reset Dress Position", style: TextStyle(color: Colors.white70)),
+              ),
             SizedBox(height: 24),
 
-            /// Background Selector
             Align(
               alignment: Alignment.centerLeft,
               child: Text("Background", style: TextStyle(color: Colors.white70, fontSize: 16)),
@@ -258,7 +295,6 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
             ),
             SizedBox(height: 24),
 
-            /// Dress Selector
             Align(
               alignment: Alignment.centerLeft,
               child: Text("Dress Type", style: TextStyle(color: Colors.white70, fontSize: 16)),
@@ -279,7 +315,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                 style: TextStyle(color: Colors.white),
                 isExpanded: true,
                 onChanged: (val) => setState(() => selectedDress = val!),
-                items: ["Gents", "Ladies", "Kids"]
+                items: ["Original", "Gents", "Ladies", "Kids"]
                     .map((e) => DropdownMenuItem(
                   value: e,
                   child: Text("Formal - $e"),
@@ -289,7 +325,6 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
             ),
             SizedBox(height: 24),
 
-            /// Copies
             Align(
               alignment: Alignment.centerLeft,
               child: Text("No. of Copies", style: TextStyle(color: Colors.white70, fontSize: 16)),
@@ -309,7 +344,6 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
             ),
             SizedBox(height: 30),
 
-            /// Continue Button
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -340,5 +374,18 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         ),
       ),
     );
+  }
+
+  String _getDressAssetPath(String dressType) {
+    switch (dressType) {
+      case "Gents":
+        return 'assets/dress/dress_gents.png';
+      case "Ladies":
+        return 'assets/dress/dress_ladies.png';
+      case "Kids":
+        return 'assets/dress/dress_kids.png';
+      default:
+        return ''; // No overlay
+    }
   }
 }
