@@ -13,8 +13,8 @@ class PassportPhotoScreen extends StatefulWidget {
 }
 
 class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
-  String selectedBackground = "white";
-  String selectedDress = "Gents";
+  String selectedBackground = "";
+  String selectedDress = "Original";
   int selectedCopy = 4;
 
   Uint8List? _originalImageBytes;
