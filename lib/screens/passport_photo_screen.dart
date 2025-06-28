@@ -1,6 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
 class PassportPhotoScreen extends StatefulWidget {
@@ -11,25 +14,87 @@ class PassportPhotoScreen extends StatefulWidget {
 class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
   String selectedBackground = "white";
   String selectedDress = "Gents";
-  List<int> selectedCopies = [];
-  File? _selectedImage;
+  int selectedCopy = 4;
+
+  Uint8List? _processedImageBytes; // <-- used instead of File
   final ImagePicker _picker = ImagePicker();
+  bool isProcessing = false;
 
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? image = await _picker.pickImage(source: source);
-      if (image != null) {
-        setState(() => _selectedImage = File(image.path));
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("No image selected")),
-        );
+      if (image == null) {
+        _showMessage("No image selected");
+        return;
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
+
+      setState(() {
+        isProcessing = true;
+      });
+
+      final File imageFile = File(image.path);
+      final inputImage = InputImage.fromFile(imageFile);
+
+      final faceDetector = FaceDetector(
+        options: FaceDetectorOptions(
+          enableContours: false,
+          enableLandmarks: false,
+        ),
       );
+
+      final faces = await faceDetector.processImage(inputImage);
+
+      if (faces.isEmpty) {
+        _showMessage("No face detected");
+        setState(() => isProcessing = false);
+        return;
+      }
+
+      final originalBytes = await imageFile.readAsBytes();
+      final decodedImage = img.decodeImage(originalBytes);
+
+      if (decodedImage == null) {
+        _showMessage("Failed to process image");
+        setState(() => isProcessing = false);
+        return;
+      }
+
+      // Resize to cover passport size
+      const int targetWidth = 413;
+      const int targetHeight = 531;
+      final resized = img.copyResize(
+        decodedImage,
+        width: decodedImage.width > decodedImage.height
+            ? (decodedImage.width * targetHeight / decodedImage.height).toInt()
+            : targetWidth,
+        height: decodedImage.height > decodedImage.width
+            ? (decodedImage.height * targetWidth / decodedImage.width).toInt()
+            : targetHeight,
+      );
+
+      // Crop center to 413x531
+      final cropped = img.copyCrop(
+        resized,
+        x: (resized.width - targetWidth) ~/ 2,
+        y: (resized.height - targetHeight) ~/ 2,
+        width: targetWidth,
+        height: targetHeight,
+      );
+
+      final jpgBytes = img.encodeJpg(cropped);
+
+      setState(() {
+        _processedImageBytes = Uint8List.fromList(jpgBytes);
+        isProcessing = false;
+      });
+    } catch (e) {
+      _showMessage("Error: ${e.toString()}");
+      setState(() => isProcessing = false);
     }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showImageSourceDialog() {
@@ -77,8 +142,10 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                   border: Border.all(color: Colors.grey),
                   color: Colors.grey[200],
                 ),
-                child: _selectedImage != null
-                    ? Image.file(_selectedImage!, fit: BoxFit.fitHeight)
+                child: isProcessing
+                    ? Center(child: CircularProgressIndicator())
+                    : _processedImageBytes != null
+                    ? Image.memory(_processedImageBytes!, fit: BoxFit.fitHeight)
                     : Center(child: Text("Tap to upload photo")),
               ),
             ),
@@ -110,25 +177,25 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
               children: [4, 6, 8, 16].map((num) {
                 return ChoiceChip(
                   label: Text('$num'),
-                  selected: selectedCopies.contains(num),
-                  onSelected: (_) {
-                    setState(() {
-                      if (selectedCopies.contains(num)) {
-                        selectedCopies.remove(num);
-                      } else {
-                        selectedCopies.add(num);
-                      }
-                    });
-                  },
+                  selected: selectedCopy == num,
+                  onSelected: (_) => setState(() => selectedCopy = num),
                 );
               }).toList(),
             ),
             Spacer(),
             ElevatedButton(
-              onPressed: _selectedImage != null
+              onPressed: _processedImageBytes != null
                   ? () {
-                // Pass _selectedImage to next screen using Navigator
-                Navigator.pushNamed(context, '/export', arguments: _selectedImage);
+                Navigator.pushNamed(
+                  context,
+                  '/export',
+                  arguments: {
+                    'imageBytes': _processedImageBytes,
+                    'background': selectedBackground,
+                    'dress': selectedDress,
+                    'copies': selectedCopy,
+                  },
+                );
               }
                   : null,
               child: Text("Continue"),
@@ -137,6 +204,5 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         ),
       ),
     );
-
   }
 }
