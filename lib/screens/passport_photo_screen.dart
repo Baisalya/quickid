@@ -1,6 +1,7 @@
+import 'dart:io';
 
-// lib/screens/passport_photo_screen.dart
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class PassportPhotoScreen extends StatefulWidget {
   @override
@@ -11,6 +12,53 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
   String selectedBackground = "white";
   String selectedDress = "Gents";
   List<int> selectedCopies = [];
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? image = await _picker.pickImage(source: source);
+      if (image != null) {
+        setState(() => _selectedImage = File(image.path));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No image selected")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.toString()}")),
+      );
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: Icon(Icons.camera_alt),
+              title: Text("Take a photo"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.photo_library),
+              title: Text("Choose from gallery"),
+              onTap: () {
+                Navigator.pop(context);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +68,20 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Placeholder(fallbackHeight: 200),
+            GestureDetector(
+              onTap: _showImageSourceDialog,
+              child: Container(
+                height: 200,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey),
+                  color: Colors.grey[200],
+                ),
+                child: _selectedImage != null
+                    ? Image.file(_selectedImage!, fit: BoxFit.fitHeight)
+                    : Center(child: Text("Tap to upload photo")),
+              ),
+            ),
             SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -36,7 +97,12 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
             DropdownButton<String>(
               value: selectedDress,
               onChanged: (val) => setState(() => selectedDress = val!),
-              items: ["Gents", "Ladies", "Kids"].map((e) => DropdownMenuItem(value: e, child: Text("Formal - $e"))).toList(),
+              items: ["Gents", "Ladies", "Kids"]
+                  .map((e) => DropdownMenuItem(
+                value: e,
+                child: Text("Formal - $e"),
+              ))
+                  .toList(),
             ),
             SizedBox(height: 20),
             Wrap(
@@ -59,7 +125,12 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
             ),
             Spacer(),
             ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/export'),
+              onPressed: _selectedImage != null
+                  ? () {
+                // Pass _selectedImage to next screen using Navigator
+                Navigator.pushNamed(context, '/export', arguments: _selectedImage);
+              }
+                  : null,
               child: Text("Continue"),
             ),
           ],
