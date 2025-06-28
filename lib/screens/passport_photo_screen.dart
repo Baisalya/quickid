@@ -17,11 +17,12 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
   String selectedBackground = "white";
   String selectedDress = "Gents";
   int selectedCopy = 4;
+  Rect? _faceBoundingBox;
 
-  Uint8List? _processedImageBytes; // <-- used instead of File
+  Uint8List? _originalImageBytes;
+  Uint8List? _processedImageBytes;
   final ImagePicker _picker = ImagePicker();
   bool isProcessing = false;
-
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -30,10 +31,6 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         _showMessage("No image selected");
         return;
       }
-
-      setState(() {
-        isProcessing = true;
-      });
 
       final File imageFile = File(image.path);
       final inputImage = InputImage.fromFile(imageFile);
@@ -50,14 +47,32 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
 
       if (faces.isEmpty) {
         _showMessage("No face detected");
-        setState(() => isProcessing = false);
         return;
       }
 
       final originalBytes = await imageFile.readAsBytes();
+      setState(() {
+        _originalImageBytes = originalBytes;
+        _processedImageBytes = null;
+      });
 
-      // ✅ Remove background
-      final removedBgBytes = await removeBackground(imageBytes: originalBytes);
+      // Automatically remove background after picking
+      await _removeBackground();
+
+    } catch (e) {
+      _showMessage("Error: ${e.toString()}");
+    }
+  }
+
+  Future<void> _removeBackground() async {
+    if (_originalImageBytes == null) return;
+
+    setState(() {
+      isProcessing = true;
+    });
+
+    try {
+      final removedBgBytes = await removeBackground(imageBytes: _originalImageBytes!);
       final decodedImage = img.decodeImage(removedBgBytes);
       if (decodedImage == null) {
         _showMessage("Failed to process image");
@@ -65,36 +80,49 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         return;
       }
 
-      // ✅ Create white background
-      final backgroundImage = img.Image(
+      final bgColor = _getSelectedColor();
+
+      final withWhiteBg = img.Image(
         width: decodedImage.width,
         height: decodedImage.height,
       );
-      final white = img.ColorRgb8(255, 255, 255);
-      img.fill(backgroundImage, color: white);
+      img.fill(withWhiteBg, color: bgColor);
 
-      // ✅ Copy subject over white background (preserving exact quality)
       for (int y = 0; y < decodedImage.height; y++) {
         for (int x = 0; x < decodedImage.width; x++) {
           final pixel = decodedImage.getPixel(x, y);
           if (pixel.a > 0) {
-            backgroundImage.setPixel(x, y, pixel);
+            withWhiteBg.setPixel(x, y, pixel);
           }
         }
       }
 
-      // ✅ Resize and crop to passport size
+      final topPadding = (decodedImage.height * 0.15).toInt();
+      final paddedImage = img.Image(
+        width: withWhiteBg.width,
+        height: withWhiteBg.height + topPadding,
+      );
+      img.fill(paddedImage, color: bgColor);
+
+      for (int y = 0; y < withWhiteBg.height; y++) {
+        for (int x = 0; x < withWhiteBg.width; x++) {
+          final pixel = withWhiteBg.getPixel(x, y);
+          paddedImage.setPixel(x, y + topPadding, pixel);
+        }
+      }
+
       const targetWidth = 413;
       const targetHeight = 531;
+
       final resized = img.copyResize(
-        backgroundImage,
-        width: backgroundImage.width > backgroundImage.height
-            ? (backgroundImage.width * targetHeight / backgroundImage.height).toInt()
+        paddedImage,
+        width: paddedImage.width > paddedImage.height
+            ? (paddedImage.width * targetHeight / paddedImage.height).toInt()
             : targetWidth,
-        height: backgroundImage.height > backgroundImage.width
-            ? (backgroundImage.height * targetWidth / backgroundImage.width).toInt()
+        height: paddedImage.height > paddedImage.width
+            ? (paddedImage.height * targetWidth / paddedImage.width).toInt()
             : targetHeight,
-        interpolation: img.Interpolation.cubic, // ✅ preserves detail
+        interpolation: img.Interpolation.cubic,
       );
 
       final cropped = img.copyCrop(
@@ -105,16 +133,26 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         height: targetHeight,
       );
 
-      // ✅ Encode as high-quality JPG
       final jpgBytes = img.encodeJpg(cropped, quality: 100);
 
       setState(() {
         _processedImageBytes = Uint8List.fromList(jpgBytes);
-        isProcessing = false;
       });
     } catch (e) {
       _showMessage("Error: ${e.toString()}");
-      setState(() => isProcessing = false);
+    }
+
+    setState(() => isProcessing = false);
+  }
+
+  img.ColorRgb8 _getSelectedColor() {
+    switch (selectedBackground) {
+      case 'blue':
+        return img.ColorRgb8(0, 102, 204);
+      case 'grey':
+        return img.ColorRgb8(200, 200, 200);
+      default:
+        return img.ColorRgb8(255, 255, 255);
     }
   }
 
@@ -152,6 +190,8 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final imageToShow = _processedImageBytes ?? _originalImageBytes;
+
     return Scaffold(
       appBar: AppBar(title: Text("Passport Photo Maker")),
       body: Padding(
@@ -160,18 +200,31 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
           children: [
             GestureDetector(
               onTap: _showImageSourceDialog,
-              child: Container(
-                height: 200,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.grey),
-                  color: Colors.grey[200],
-                ),
-                child: isProcessing
-                    ? Center(child: CircularProgressIndicator())
-                    : _processedImageBytes != null
-                    ? Image.memory(_processedImageBytes!, fit: BoxFit.fitHeight)
-                    : Center(child: Text("Tap to upload photo")),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    height: 200,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      color: Colors.grey[200],
+                    ),
+                    child: isProcessing
+                        ? Center(child: CircularProgressIndicator())
+                        : imageToShow != null
+                        ? Image.memory(imageToShow, fit: BoxFit.fitHeight)
+                        : Center(child: Text("Tap to upload photo")),
+                  ),
+                  if (_originalImageBytes != null && _processedImageBytes == null)
+                    Positioned(
+                      bottom: 8,
+                      child: ElevatedButton(
+                        onPressed: _removeBackground,
+                        child: Text("Remove Background"),
+                      ),
+                    ),
+                ],
               ),
             ),
             SizedBox(height: 20),
@@ -181,7 +234,12 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                 return ChoiceChip(
                   label: Text(color),
                   selected: selectedBackground == color,
-                  onSelected: (_) => setState(() => selectedBackground = color),
+                  onSelected: (_) {
+                    setState(() => selectedBackground = color);
+                    if (_originalImageBytes != null) {
+                      _removeBackground(); // regenerate with new background color
+                    }
+                  },
                 );
               }).toList(),
             ),
