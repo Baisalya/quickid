@@ -220,43 +220,47 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                 child: isProcessing
                     ? const Center(child: CircularProgressIndicator(color: Colors.white))
                     : imageToShow != null
-                    ? ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: Image.memory(imageToShow, fit: BoxFit.contain),
-                      ),
-                      if (_processedImageBytes != null && selectedDress != "Original")
-                        Positioned(
-                          left: _dressOffset.dx,
-                          top: _dressOffset.dy,
-                          child: GestureDetector(
-                            onScaleStart: (details) {
-                              _initialFocalPoint = details.focalPoint;
-                              _initialDressOffset = _dressOffset;
-                              _initialDressScale = _dressScale;
-                            },
-                            onScaleUpdate: (details) {
-                              setState(() {
-                                _dressScale = (_initialDressScale * details.scale).clamp(0.5, 2.5);
-                                final delta = details.focalPoint - _initialFocalPoint;
-                                _dressOffset = _initialDressOffset + delta;
-                              });
-                            },
-                            child: Transform.scale(
-                              scale: _dressScale,
-                              child: Image.asset(
-                                _getDressAssetPath(selectedDress),
-                                width: 200,
-                                fit: BoxFit.contain,
+                    ? Center(
+                  child: ClipRect(
+                    child: Stack(
+                      clipBehavior: Clip.hardEdge, // ensures overflow is clipped
+                      children: [
+                        Image.memory(
+                          imageToShow,
+                          fit: BoxFit.contain,
+                        ),
+                        if (_processedImageBytes != null && selectedDress != "Original")
+                          Positioned(
+                            left: _dressOffset.dx,
+                            top: _dressOffset.dy,
+                            child: GestureDetector(
+                              onScaleStart: (details) {
+                                _initialFocalPoint = details.focalPoint;
+                                _initialDressOffset = _dressOffset;
+                                _initialDressScale = _dressScale;
+                              },
+                              onScaleUpdate: (details) {
+                                setState(() {
+                                  _dressScale = (_initialDressScale * details.scale).clamp(0.5, 2.5);
+                                  final delta = details.focalPoint - _initialFocalPoint;
+                                  _dressOffset = _initialDressOffset + delta;
+                                });
+                              },
+                              child: Transform.scale(
+                                scale: _dressScale,
+                                child: Image.asset(
+                                  _getDressAssetPath(selectedDress),
+                                  width: 200,
+                                  fit: BoxFit.contain,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 )
+
                     : const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
