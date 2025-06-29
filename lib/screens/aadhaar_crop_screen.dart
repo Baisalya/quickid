@@ -7,6 +7,8 @@ import 'package:path_provider/path_provider.dart';
 import 'export_screen.dart';
 
 class AadhaarCropScreen extends StatefulWidget {
+  const AadhaarCropScreen({super.key});
+
   @override
   _AadhaarCropScreenState createState() => _AadhaarCropScreenState();
 }
@@ -80,7 +82,7 @@ class _AadhaarCropScreenState extends State<AadhaarCropScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Aadhaar Crop")),
+      appBar: AppBar(title: const Text("Aadhaar Crop")),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -92,14 +94,14 @@ class _AadhaarCropScreenState extends State<AadhaarCropScreen> {
                   : Container(
                 height: 200,
                 color: Colors.grey[300],
-                child: Center(child: Text("Tap to upload Aadhaar image")),
+                child: const Center(child: Text("Tap to upload Aadhaar image")),
               ),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Row(
               children: [
-                Text("White Background"),
-                Spacer(),
+                const Text("White Background"),
+                const Spacer(),
                 Switch(
                   value: _whiteBackground,
                   onChanged: (val) => setState(() => _whiteBackground = val),
@@ -116,10 +118,10 @@ class _AadhaarCropScreenState extends State<AadhaarCropScreen> {
               onChanged: (val) => setState(() => _resolution = val!),
               items: ["1080p", "2K", "4K"].map((val) => DropdownMenuItem(value: val, child: Text(val))).toList(),
             ),
-            Spacer(),
+            const Spacer(),
             ElevatedButton(
               onPressed: _image != null ? _export : null,
-              child: Text("Export"),
+              child: const Text("Export"),
             ),
           ],
         ),
