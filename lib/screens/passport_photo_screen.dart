@@ -26,9 +26,12 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
   // Dress position and scale
   Offset _dressOffset = const Offset(0, 0);
   double _dressScale = 1.0;
+  double _dressRotation = 0.0;
+
   Offset _initialFocalPoint = Offset.zero;
   Offset _initialDressOffset = Offset.zero;
   double _initialDressScale = 1.0;
+  double _initialDressRotation = 0.0;
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -223,7 +226,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                     ? Center(
                   child: ClipRect(
                     child: Stack(
-                      clipBehavior: Clip.hardEdge, // ensures overflow is clipped
+                      clipBehavior: Clip.hardEdge,
                       children: [
                         Image.memory(
                           imageToShow,
@@ -238,16 +241,22 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                                 _initialFocalPoint = details.focalPoint;
                                 _initialDressOffset = _dressOffset;
                                 _initialDressScale = _dressScale;
+                                _initialDressRotation = _dressRotation;
                               },
                               onScaleUpdate: (details) {
                                 setState(() {
-                                  _dressScale = (_initialDressScale * details.scale).clamp(0.5, 2.5);
+                                  _dressScale = (_initialDressScale * details.scale).clamp(0.5, 3.0);
                                   final delta = details.focalPoint - _initialFocalPoint;
                                   _dressOffset = _initialDressOffset + delta;
+                                  _dressRotation = _initialDressRotation + details.rotation;
                                 });
                               },
-                              child: Transform.scale(
-                                scale: _dressScale,
+                              child: Transform(
+                                alignment: Alignment.center,
+                                transform: Matrix4.identity()
+                                  ..translate(0.0, 0.0)
+                                  ..scale(_dressScale)
+                                  ..rotateZ(_dressRotation),
                                 child: Image.asset(
                                   _getDressAssetPath(selectedDress),
                                   width: 200,
@@ -260,6 +269,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                     ),
                   ),
                 )
+
 
                     : const Center(
                   child: Column(
@@ -279,11 +289,11 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                   setState(() {
                     _dressOffset = const Offset(0, 0);
                     _dressScale = 1.0;
+                    _dressRotation = 0.0;
                   });
                 },
-                child: const Text("Reset Dress Position", style: TextStyle(color: Colors.white70)),
-              ),
-            const SizedBox(height: 24),
+                child: const Text("Reset Dress", style: TextStyle(color: Colors.white70)),
+              ),            const SizedBox(height: 24),
 
             const Align(
               alignment: Alignment.centerLeft,

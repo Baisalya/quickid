@@ -73,10 +73,12 @@ class _AadhaarCropScreenState extends State<AadhaarCropScreen> {
 
   void _export() {
     // You can pass _image, _format, _resolution to ExportScreen
+/*
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => ExportScreen(imageFile: _image)),
+      MaterialPageRoute(builder: (context) => ExportScreen(imageFile: _image, imageBytes: null,)),
     );
+*/
   }
 
   @override

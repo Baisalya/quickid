@@ -1,4 +1,3 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
 import 'screens/splash_screen.dart';
 import 'screens/home_screen.dart';
@@ -18,18 +17,34 @@ class PhotoApp extends StatelessWidget {
       theme: ThemeData.dark(),
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
-      routes: {
-        '/': (context) => const SplashScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/aadhaar_crop': (context) => const AadhaarCropScreen(),
-        '/passport_photo': (context) => const PassportPhotoScreen(),
-        '/export': (context) => const ExportScreen(),
+      onGenerateRoute: (settings) {
+        switch (settings.name) {
+          case '/':
+            return MaterialPageRoute(builder: (_) => const SplashScreen());
+          case '/home':
+            return MaterialPageRoute(builder: (_) => const HomeScreen());
+          case '/aadhaar_crop':
+            return MaterialPageRoute(builder: (_) => const AadhaarCropScreen());
+          case '/passport_photo':
+            return MaterialPageRoute(builder: (_) => const PassportPhotoScreen());
+          case '/export':
+            final args = settings.arguments as Map;
+            return MaterialPageRoute(
+              builder: (_) => ExportScreen(
+                imageBytes: args['imageBytes'],
+                background: args['background'],
+                dress: args['dress'],
+                copies: args['copies'],
+              ),
+            );
+          default:
+            return MaterialPageRoute(
+              builder: (_) => const Scaffold(
+                body: Center(child: Text("Unknown route")),
+              ),
+            );
+        }
       },
     );
   }
 }
-
-
-
-
-
