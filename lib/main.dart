@@ -6,9 +6,11 @@ import 'screens/aadhaar_crop_screen.dart';
 import 'screens/passport_photo_screen.dart';
 import 'screens/export_screen.dart';
 
-void main() => runApp(PhotoApp());
+void main() => runApp(const PhotoApp());
 
 class PhotoApp extends StatelessWidget {
+  const PhotoApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -17,11 +19,11 @@ class PhotoApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
       routes: {
-        '/': (context) => SplashScreen(),
-        '/home': (context) => HomeScreen(),
-        '/aadhaar_crop': (context) => AadhaarCropScreen(),
-        '/passport_photo': (context) => PassportPhotoScreen(),
-        '/export': (context) => ExportScreen(),
+        '/': (context) => const SplashScreen(),
+        '/home': (context) => const HomeScreen(),
+        '/aadhaar_crop': (context) => const AadhaarCropScreen(),
+        '/passport_photo': (context) => const PassportPhotoScreen(),
+        '/export': (context) => const ExportScreen(),
       },
     );
   }

@@ -5,9 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
-import 'package:google_mlkit_selfie_segmentation/google_mlkit_selfie_segmentation.dart';
 
 class PassportPhotoScreen extends StatefulWidget {
+  const PassportPhotoScreen({super.key});
+
   @override
   _PassportPhotoScreenState createState() => _PassportPhotoScreenState();
 }
@@ -23,7 +24,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
   bool isProcessing = false;
 
   // Dress position and scale
-  Offset _dressOffset = Offset(0, 0);
+  Offset _dressOffset = const Offset(0, 0);
   double _dressScale = 1.0;
   Offset _initialFocalPoint = Offset.zero;
   Offset _initialDressOffset = Offset.zero;
@@ -58,7 +59,9 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         _processedImageBytes = null;
       });
 
+/*
       await _removeBackground();
+*/
     } catch (e) {
       _showMessage("Error: ${e.toString()}");
     }
@@ -110,10 +113,10 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
       final resized = img.copyResize(
         paddedImage,
         width: paddedImage.width > paddedImage.height
-            ? (paddedImage.width * targetHeight / paddedImage.height).toInt()
+            ? paddedImage.width * targetHeight ~/ paddedImage.height
             : targetWidth,
         height: paddedImage.height > paddedImage.width
-            ? (paddedImage.height * targetWidth / paddedImage.width).toInt()
+            ? paddedImage.height * targetWidth ~/ paddedImage.width
             : targetHeight,
         interpolation: img.Interpolation.cubic,
       );
@@ -130,7 +133,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
 
       setState(() {
         _processedImageBytes = Uint8List.fromList(jpgBytes);
-        _dressOffset = Offset(0, 0); // Reset dress position
+        _dressOffset = const Offset(0, 0); // Reset dress position
         _dressScale = 1.0;
       });
     } catch (e) {
@@ -162,16 +165,16 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         child: Wrap(
           children: [
             ListTile(
-              leading: Icon(Icons.camera_alt),
-              title: Text("Take a photo"),
+              leading: const Icon(Icons.camera_alt),
+              title: const Text("Take a photo"),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.camera);
               },
             ),
             ListTile(
-              leading: Icon(Icons.photo_library),
-              title: Text("Choose from gallery"),
+              leading: const Icon(Icons.photo_library),
+              title: const Text("Choose from gallery"),
               onTap: () {
                 Navigator.pop(context);
                 _pickImage(ImageSource.gallery);
@@ -190,7 +193,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: Text("Passport Photo Maker"),
+        title: const Text("Passport Photo Maker"),
         backgroundColor: Colors.black,
         elevation: 0,
       ),
@@ -210,14 +213,14 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                   border: Border.all(color: Colors.grey[700]!),
                 ),
                 child: isProcessing
-                    ? Center(child: CircularProgressIndicator(color: Colors.white))
+                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
                     : imageToShow != null
                     ? ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Stack(
                     children: [
                       Center(
-                        child: Image.memory(imageToShow!, fit: BoxFit.contain),
+                        child: Image.memory(imageToShow, fit: BoxFit.contain),
                       ),
                       if (_processedImageBytes != null && selectedDress != "Original")
                         Positioned(
@@ -249,7 +252,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                     ],
                   ),
                 )
-                    : Center(
+                    : const Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -265,24 +268,24 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
               TextButton(
                 onPressed: () {
                   setState(() {
-                    _dressOffset = Offset(0, 0);
+                    _dressOffset = const Offset(0, 0);
                     _dressScale = 1.0;
                   });
                 },
-                child: Text("Reset Dress Position", style: TextStyle(color: Colors.white70)),
+                child: const Text("Reset Dress Position", style: TextStyle(color: Colors.white70)),
               ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-            Align(
+            const Align(
               alignment: Alignment.centerLeft,
               child: Text("Background", style: TextStyle(color: Colors.white70, fontSize: 16)),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 12,
               children: ["white", "blue", "grey"].map((color) {
                 return ChoiceChip(
-                  label: Text(color, style: TextStyle(color: Colors.white)),
+                  label: Text(color, style: const TextStyle(color: Colors.white)),
                   selectedColor: Colors.blueGrey[700],
                   selected: selectedBackground == color,
                   onSelected: (_) {
@@ -293,15 +296,15 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                 );
               }).toList(),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-            Align(
+            const Align(
               alignment: Alignment.centerLeft,
               child: Text("Dress Type", style: TextStyle(color: Colors.white70, fontSize: 16)),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Container(
-              padding: EdgeInsets.symmetric(horizontal: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: Colors.grey[850],
                 borderRadius: BorderRadius.circular(10),
@@ -310,9 +313,9 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
               child: DropdownButton<String>(
                 dropdownColor: Colors.grey[900],
                 value: selectedDress,
-                underline: SizedBox(),
+                underline: const SizedBox(),
                 iconEnabledColor: Colors.white70,
-                style: TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.white),
                 isExpanded: true,
                 onChanged: (val) => setState(() => selectedDress = val!),
                 items: ["Original", "Gents", "Ladies", "Kids"]
@@ -323,18 +326,18 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                     .toList(),
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-            Align(
+            const Align(
               alignment: Alignment.centerLeft,
               child: Text("No. of Copies", style: TextStyle(color: Colors.white70, fontSize: 16)),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 12,
               children: [4, 6, 8, 16].map((num) {
                 return ChoiceChip(
-                  label: Text('$num', style: TextStyle(color: Colors.white)),
+                  label: Text('$num', style: const TextStyle(color: Colors.white)),
                   selectedColor: Colors.deepPurple,
                   selected: selectedCopy == num,
                   onSelected: (_) => setState(() => selectedCopy = num),
@@ -342,7 +345,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                 );
               }).toList(),
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
 
             SizedBox(
               width: double.infinity,
@@ -361,12 +364,12 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
                   );
                 }
                     : null,
-                icon: Icon(Icons.check_circle_outline),
-                label: Text("Continue"),
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text("Continue"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _processedImageBytes != null ? Colors.deepPurple : Colors.grey[800],
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  textStyle: TextStyle(fontSize: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  textStyle: const TextStyle(fontSize: 16),
                 ),
               ),
             ),

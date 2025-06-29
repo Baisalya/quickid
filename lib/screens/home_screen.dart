@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 
 class HomeScreen extends StatelessWidget {
+  const HomeScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -11,19 +13,19 @@ class HomeScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
+            const Text(
               "Aadhaar Crop +\nPassport Photo Maker",
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 40),
+            const SizedBox(height: 40),
             ElevatedButton(
               onPressed: () => Navigator.pushNamed(context, '/aadhaar_crop'),
-              child: Text("Aadhaar Crop"),
+              child: const Text("Aadhaar Crop"),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pushNamed(context, '/passport_photo'),
-              child: Text("Passport Photo Maker"),
+              child: const Text("Passport Photo Maker"),
             ),
           ],
         ),
