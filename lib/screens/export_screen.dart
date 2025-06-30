@@ -85,7 +85,34 @@ class _ExportScreenState extends State<ExportScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 24),
+
+            const SizedBox(height: 20),
+
+            /// Dress / Background / Copies preview row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _iconPreview("Dress", widget.dress),
+                _iconPreview("Background", widget.background),
+                Column(
+                  children: [
+                    const Text("Copies", style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 6),
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: Colors.deepPurple,
+                      child: Text(
+                        "${widget.copies}",
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 30),
+
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -109,7 +136,9 @@ class _ExportScreenState extends State<ExportScreen> {
                 );
               }).toList(),
             ),
+
             const SizedBox(height: 30),
+
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
@@ -135,7 +164,9 @@ class _ExportScreenState extends State<ExportScreen> {
                 );
               }).toList(),
             ),
+
             const Spacer(),
+
             SizedBox(
               width: double.infinity,
               child: TextButton.icon(
@@ -154,6 +185,24 @@ class _ExportScreenState extends State<ExportScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Dress / Background icon preview widget
+  Widget _iconPreview(String label, String imagePath) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 6),
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: Colors.white10,
+          backgroundImage: File(imagePath).existsSync() ? FileImage(File(imagePath)) : null,
+          child: !File(imagePath).existsSync()
+              ? const Icon(Icons.broken_image, color: Colors.white54)
+              : null,
+        ),
+      ],
     );
   }
 
