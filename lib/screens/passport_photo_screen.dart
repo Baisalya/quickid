@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 class PassportPhotoScreen extends StatefulWidget {
   const PassportPhotoScreen({super.key});
@@ -42,23 +43,23 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
       }
 
       final File imageFile = File(image.path);
-      final inputImage = InputImage.fromFile(imageFile);
+      final bytes = await imageFile.readAsBytes();
 
-      final faceDetector = FaceDetector(
-        options: FaceDetectorOptions(enableContours: false, enableLandmarks: false),
-      );
-
-      final faces = await faceDetector.processImage(inputImage);
-      await faceDetector.close();
-
-      if (faces.isEmpty) {
-        _showMessage("No face detected");
+      // Decode and resize if needed
+      img.Image? decoded = img.decodeImage(bytes);
+      if (decoded == null) {
+        _showMessage("Could not decode image");
         return;
       }
 
-      final originalBytes = await imageFile.readAsBytes();
+      if (decoded.width > 2000 || decoded.height > 2000) {
+        decoded = img.copyResize(decoded, width: 2000);
+      }
+
+      final resizedBytes = Uint8List.fromList(img.encodeJpg(decoded, quality: 90));
+
       setState(() {
-        _originalImageBytes = originalBytes;
+        _originalImageBytes = resizedBytes;
         _processedImageBytes = null;
         selectedBackground = "";
         selectedDress = "Original";
@@ -67,11 +68,31 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         _dressScale = 1.0;
       });
 
-/*
-      await _removeBackground();
-*/
     } catch (e) {
       _showMessage("Error: ${e.toString()}");
+    }
+  }
+  Future<bool> _detectFace(Uint8List imageBytes) async {
+    try {
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/temp.jpg');
+      await tempFile.writeAsBytes(imageBytes);
+
+      final inputImage = InputImage.fromFile(tempFile);
+      final faceDetector = FaceDetector(
+        options: FaceDetectorOptions(
+          enableContours: false,
+          enableLandmarks: false,
+        ),
+      );
+
+      final faces = await faceDetector.processImage(inputImage);
+      await faceDetector.close();
+
+      return faces.isNotEmpty;
+    } catch (e) {
+      _showMessage("Face detection error: ${e.toString()}");
+      return false;
     }
   }
 
@@ -82,6 +103,13 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
       isProcessing = true;
     });
 
+    final hasFace = await _detectFace(_originalImageBytes!);
+    if (!hasFace) {
+      _showMessage("No face detected. Background change skipped.");
+      setState(() => isProcessing = false);
+      return;
+    }
+
     try {
       final removedBgBytes = await removeBackground(imageBytes: _originalImageBytes!);
       final decodedImage = img.decodeImage(removedBgBytes);
@@ -91,6 +119,7 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         return;
       }
 
+      // Fill transparent background with selected color
       final bgColor = _getSelectedColor();
       final withBg = img.Image(width: decodedImage.width, height: decodedImage.height);
       img.fill(withBg, color: bgColor);
@@ -102,7 +131,8 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         }
       }
 
-      final topPadding = (decodedImage.height * 0.15).toInt();
+      // Add top padding (15%)
+      final topPadding = (withBg.height * 0.15).toInt();
       final paddedImage = img.Image(
         width: withBg.width,
         height: withBg.height + topPadding,
@@ -115,35 +145,40 @@ class _PassportPhotoScreenState extends State<PassportPhotoScreen> {
         }
       }
 
+      // Resize only if image is too small or too large
+      img.Image finalImage = paddedImage;
+
+      // Define passport size
       const targetWidth = 413;
       const targetHeight = 531;
 
-      final resized = img.copyResize(
-        paddedImage,
-        width: paddedImage.width > paddedImage.height
-            ? paddedImage.width * targetHeight ~/ paddedImage.height
-            : targetWidth,
-        height: paddedImage.height > paddedImage.width
-            ? paddedImage.height * targetWidth ~/ paddedImage.width
-            : targetHeight,
-        interpolation: img.Interpolation.cubic,
-      );
+      if (paddedImage.width < targetWidth || paddedImage.height < targetHeight ||
+          paddedImage.width > targetWidth * 2 || paddedImage.height > targetHeight * 2) {
+        finalImage = img.copyResize(
+          paddedImage,
+          width: targetWidth,
+          height: targetHeight,
+          interpolation: img.Interpolation.linear, // High quality
+        );
+      }
 
+      // Center crop (optional if resize above matches exactly)
       final cropped = img.copyCrop(
-        resized,
-        x: (resized.width - targetWidth) ~/ 2,
-        y: (resized.height - targetHeight) ~/ 2,
+        finalImage,
+        x: (finalImage.width - targetWidth) ~/ 2,
+        y: (finalImage.height - targetHeight) ~/ 2,
         width: targetWidth,
         height: targetHeight,
       );
 
-      final jpgBytes = img.encodeJpg(cropped, quality: 100);
+      final pngBytes = img.encodePng(cropped);
 
       setState(() {
-        _processedImageBytes = Uint8List.fromList(jpgBytes);
-        _dressOffset = const Offset(0, 0); // Reset dress position
+        _processedImageBytes = Uint8List.fromList(pngBytes);
+        _dressOffset = const Offset(0, 0);
         _dressScale = 1.0;
       });
+
     } catch (e) {
       _showMessage("Error: ${e.toString()}");
     }
